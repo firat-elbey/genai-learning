@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inside the Transformer — how an LLM really works</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="confetti"></canvas>
+<div id="toast"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">🧠</span>
+    <div>
+      <div class="brand-title">Inside the Transformer</div>
+      <div class="brand-sub">watch your words flow through a real (tiny) language model</div>
+    </div>
+  </div>
+  <div class="hud">
+    <div class="rank" id="hud-rank">Curious Visitor</div>
+    <div class="xpbar"><div class="xpfill" id="hud-xpfill"></div></div>
+    <div class="xp-label" id="hud-xp">0 XP</div>
+    <div class="badges" id="hud-badges"></div>
+  </div>
+</header>
+
+<nav class="level-map" id="level-map"></nav>
+
+<section class="prompt-bar">
+  <label for="prompt-input">Your input</label>
+  <input id="prompt-input" value="the cat sat on the mat and" maxlength="140"
+         autocomplete="off" spellcheck="false">
+  <div class="prompt-suggestions">
+    try: <button class="chip-btn" data-fill="the sun rises in the morning and">the sun rises…</button>
+    <button class="chip-btn" data-fill="the model reads the input and">the model reads…</button>
+    <button class="chip-btn" data-fill="unbelievable transformers are playing">unbelievable transformers…</button>
+  </div>
+</section>
+
+<main id="stages">
+
+  <!-- ============ STAGE 0 · TOKENS ============ -->
+  <section class="stage" id="stage-tokens">
+    <h2>✂️ Level 1 — Tokens: text becomes pieces</h2>
+    <p class="explain">A language model can't read letters. Step one is a <b>tokenizer</b>
+    that chops your text into <b>tokens</b> — frequent words stay whole, rare words get built
+    from smaller pieces. Each token is just an <b>ID number</b> pointing into a vocabulary.
+    This tokenizer is a real BPE tokenizer, trained right in your browser on this app's tiny
+    corpus. <i>Type in the box above and watch the split change — try a weird long word!</i></p>
+    <div class="panel">
+      <div class="panel-title">Your input as the model sees it <span class="mut" id="tok-count"></span></div>
+      <div class="token-strip" id="tok-strip"></div>
+      <div class="mut small" id="tok-ids"></div>
+    </div>
+    <div class="stage-foot">
+      <span class="goal">🎯 Goal: find a word that gets split into 3+ pieces, then take the quiz.</span>
+      <button class="btn primary quiz-btn" data-stage="0">Take the quiz →</button>
+    </div>
+  </section>
+
+  <!-- ============ STAGE 1 · VECTORS ============ -->
+  <section class="stage" id="stage-vectors">
+    <h2>🧭 Level 2 — Vectors: pieces become numbers</h2>
+    <p class="explain">Each token ID looks up an <b>embedding</b> — a list of numbers (here 48,
+    in big models thousands) that <i>is</i> the token's meaning to the model. These were learned
+    from which words appear near which: <b>similar use ⇒ similar vector</b>. Because attention
+    has no sense of order, a <b>positional encoding</b> is added so each vector also knows
+    <i>where</i> it sits in the sentence. <i>Click a token below to inspect its vector.</i></p>
+    <div class="panel">
+      <div class="panel-title">Pick a token</div>
+      <div class="token-strip clickable" id="emb-strip"></div>
+      <div class="vec-rows">
+        <div class="vec-row"><span class="vec-label">meaning (embedding)</span><div class="strip-holder"><canvas id="emb-content"></canvas></div></div>
+        <div class="vec-row"><span class="vec-label">+ position</span><div class="strip-holder"><canvas id="emb-pos"></canvas></div></div>
+        <div class="vec-row"><span class="vec-label">= into the model</span><div class="strip-holder"><canvas id="emb-sum"></canvas></div></div>
+      </div>
+      <div class="mut small">each cell is one of 48 numbers · blue = positive, red = negative</div>
+      <div class="nn-box" id="emb-nn"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">The vector space, squashed to 2D <span class="mut">(PCA of all learned embeddings — your tokens in yellow)</span></div>
+      <canvas id="emb-map"></canvas>
+      <div class="mut small">Look for neighborhoods: cat/dog, sun/moon, morning/night. Nobody placed these — the geometry emerged from co-occurrence counts.</div>
+    </div>
+    <div class="stage-foot">
+      <span class="goal">🎯 Goal: find “cat” on the map and see who its neighbors are.</span>
+      <button class="btn primary quiz-btn" data-stage="1">Take the quiz →</button>
+    </div>
+  </section>
+
+  <!-- ============ STAGE 2 · ATTENTION ============ -->
+  <section class="stage" id="stage-attention">
+    <h2>🔦 Level 3 — Attention: the tokens talk to each other</h2>
+    <p class="explain">So far every token is alone. <b>Self-attention</b> is where they meet:
+    every token asks a <i>question</i> (query), every token offers an <i>answer</i> (key), and
+    each token blends in the <i>values</i> of the tokens it finds relevant. This model runs
+    <b>4 heads × 3 layers</b> of real attention — each brighter cell below is a bigger share of
+    “I'm copying from you.” The empty upper triangle is the <b>causal mask</b>: no peeking at
+    the future. <i>Switch layers & heads — each head looks at different things.</i></p>
+    <div class="panel">
+      <div class="panel-title">Attention map <span class="mut">row = token that is looking · column = token being looked at</span></div>
+      <div class="tabs" id="attn-layer-tabs"></div>
+      <div class="tabs" id="attn-head-tabs"></div>
+      <div class="scrollwrap"><canvas id="attn-heatmap"></canvas></div>
+      <div class="mut small" id="attn-hover">hover or tap a cell to read the weight</div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Who is <span id="attn-sel-name">the last token</span> listening to?</div>
+      <div class="token-strip clickable" id="attn-strip"></div>
+      <div class="attn-bars" id="attn-bars"></div>
+    </div>
+    <div class="stage-foot">
+      <span class="goal">🎯 Goal: find a head where a token strongly attends to a token far behind it.</span>
+      <button class="btn primary quiz-btn" data-stage="2">Take the quiz →</button>
+    </div>
+  </section>
+
+  <!-- ============ STAGE 3 · NEURONS ============ -->
+  <section class="stage" id="stage-neurons">
+    <h2>⚡ Level 4 — Neurons: patterns light up</h2>
+    <p class="explain">After attention, each token's vector runs through an <b>MLP</b> — a bank
+    of <b>96 neurons per layer</b> here (tens of thousands in big models). Each neuron checks the
+    vector against its own learned pattern; the GELU squashes weak matches to ≈0, so only some
+    neurons <b>fire</b>. These grids are the <i>activations</i> — the “brain scan” of the model.
+    Below that, the <b>residual stream</b>: the same token's vector after each layer. Blocks
+    don't replace the vector, they <b>add refinements</b> to it. <i>Click a token, compare layers.</i></p>
+    <div class="panel">
+      <div class="panel-title">Pick a token</div>
+      <div class="token-strip clickable" id="mlp-strip"></div>
+      <div class="neuron-layers" id="mlp-grids"></div>
+      <div class="mut small" id="mlp-stats"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">The residual stream <span class="mut">— one token's vector, refined layer by layer</span></div>
+      <div class="vec-rows" id="res-strips"></div>
+    </div>
+    <div class="stage-foot">
+      <span class="goal">🎯 Goal: find a neuron that fires for one token but stays dark for another.</span>
+      <button class="btn primary quiz-btn" data-stage="3">Take the quiz →</button>
+    </div>
+  </section>
+
+  <!-- ============ STAGE 4 · PREDICTION ============ -->
+  <section class="stage" id="stage-predict">
+    <h2>🎲 Level 5 — Prediction: scores become odds</h2>
+    <p class="explain">The final vector of the <b>last token</b> is compared against every token
+    in the vocabulary, producing a score (<b>logit</b>) for each. A <b>softmax</b> turns scores
+    into probabilities. The model's true output is this whole distribution — picking one token
+    is a separate <b>sampling</b> step. <b>Temperature</b> reshapes the odds before the draw.
+    <i>Drag the slider and watch the bars; then roll the dice.</i></p>
+    <div class="panel">
+      <div class="panel-title">Next-token probabilities after “<span id="pred-context">…</span>”</div>
+      <div class="controls">
+        <label>temperature <b id="pred-temp-val">0.8</b>
+          <input type="range" id="pred-temp" min="0.1" max="2" step="0.05" value="0.8"></label>
+        <label>top-k <b id="pred-topk-val">10</b>
+          <input type="range" id="pred-topk" min="2" max="20" step="1" value="10"></label>
+        <button class="btn" id="pred-roll">🎲 Roll the dice</button>
+      </div>
+      <div class="prob-bars" id="pred-bars"></div>
+      <div class="mut small" id="pred-note"></div>
+    </div>
+    <div class="stage-foot">
+      <span class="goal">🎯 Goal: crank temperature to 2 and to 0.1 — watch the odds flatten and sharpen.</span>
+      <button class="btn primary quiz-btn" data-stage="4">Take the quiz →</button>
+    </div>
+  </section>
+
+  <!-- ============ STAGE 5 · GENERATION ============ -->
+  <section class="stage" id="stage-generate">
+    <h2>🔁 Level 6 — Generation: the loop that writes</h2>
+    <p class="explain">One forward pass = one token. To write text, the model <b>loops</b>:
+    predict → sample → append → run again on the longer sequence. Every reply you've ever seen
+    from an LLM was produced by exactly this loop. Watch it live — each new token shows the
+    probability it was drawn with. <i>Expect toy-model poetry: it repeats and drifts, because
+    it's tiny and untrained. The</i> mechanism <i>is the real thing.</i></p>
+    <div class="panel">
+      <div class="controls">
+        <button class="btn primary" id="gen-play">▶ Generate</button>
+        <button class="btn" id="gen-reset">↺ Reset</button>
+        <label>temperature <b id="gen-temp-val">0.8</b>
+          <input type="range" id="gen-temp" min="0.1" max="2" step="0.05" value="0.8"></label>
+        <label>speed <input type="range" id="gen-speed" min="1" max="10" step="1" value="4"></label>
+        <label class="check"><input type="checkbox" id="gen-rep" checked> repetition penalty</label>
+      </div>
+      <div class="gen-out" id="gen-out"></div>
+      <div class="panel-title small-title">what the model considered at this step</div>
+      <div class="prob-bars mini" id="gen-bars"></div>
+    </div>
+    <div class="stage-foot">
+      <span class="goal">🎯 Goal: generate at least 20 tokens, then take the final quiz.</span>
+      <button class="btn primary quiz-btn" data-stage="5">Take the quiz →</button>
+    </div>
+  </section>
+
+  <!-- ============ STAGE 6 · PLAYGROUND ============ -->
+  <section class="stage" id="stage-playground">
+    <h2>🎮 Playground — everything, all at once</h2>
+    <p class="explain">You've walked the whole pipeline: <b>text → tokens → vectors → attention
+    → neurons → probabilities → loop</b>. This is the free-play mode: change the input above and
+    every panel updates through the live forward pass. Poke it until it breaks — that's research.</p>
+    <div class="panel">
+      <div class="panel-title">Pipeline at a glance</div>
+      <div class="pipeline" id="pg-pipeline"></div>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <div class="panel-title">Attention (pick layer/head)</div>
+        <div class="tabs" id="pg-layer-tabs"></div>
+        <div class="tabs" id="pg-head-tabs"></div>
+        <div class="scrollwrap"><canvas id="pg-heatmap"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Next-token odds</div>
+        <div class="controls">
+          <label>temperature <b id="pg-temp-val">0.8</b>
+            <input type="range" id="pg-temp" min="0.1" max="2" step="0.05" value="0.8"></label>
+        </div>
+        <div class="prob-bars" id="pg-bars"></div>
+        <button class="btn" id="pg-step">🎲 Sample one token → append to input</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">About what you just learned</div>
+      <p class="explain">This toy differs from GPT-class models only in scale and training:
+      real models have the same tokenizer idea (≈100k tokens), the same attention/MLP/residual
+      blocks (×dozens of layers, ×dozens of heads, ×thousands of dimensions), the same softmax
+      sampling loop — plus months of gradient descent on trillions of tokens. Here, the
+      transformer weights are <b>random</b> (honesty!) and readable behavior comes from corpus
+      statistics blended into the logits. The math you watched, though, is the real forward pass,
+      computed live in your browser in <span id="pg-ms">~5</span> ms.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <span>Built as a hands-on companion to the continual-learning research in this repo · everything runs locally, no network</span>
+  <span class="foot-links">
+    <button class="linklike" id="reset-progress">reset progress</button> ·
+    <button class="linklike" id="unlock-all">unlock all levels</button>
+  </span>
+</footer>
+
+<div class="modal hidden" id="quiz-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <span id="quiz-title">Quiz</span>
+      <button class="linklike" id="quiz-close">✕</button>
+    </div>
+    <div id="quiz-body"></div>
+  </div>
+</div>
+
+<script src="js/rng.js"></script>
+<script src="js/corpus.js"></script>
+<script src="js/tokenizer.js"></script>
+<script src="js/model.js"></script>
+<script src="js/viz.js"></script>
+<script src="js/quiz.js"></script>
+<script src="js/game.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
