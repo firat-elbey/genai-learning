@@ -94,12 +94,33 @@
   <!-- ============ STAGE 2 · ATTENTION ============ -->
   <section class="stage" id="stage-attention">
     <h2>🔦 Level 3 — Attention: the tokens talk to each other</h2>
-    <p class="explain">So far every token is alone. <b>Self-attention</b> is where they meet:
-    every token asks a <i>question</i> (query), every token offers an <i>answer</i> (key), and
-    each token blends in the <i>values</i> of the tokens it finds relevant. This model runs
-    <b>4 heads × 3 layers</b> of real attention — each brighter cell below is a bigger share of
-    “I'm copying from you.” The empty upper triangle is the <b>causal mask</b>: no peeking at
-    the future. <i>Switch layers & heads — each head looks at different things.</i></p>
+    <p class="explain">After Level 2, every token is a vector that knows its own meaning and
+    position — <b>but nothing about its neighbors</b>. In “the cat sat”, the vector for
+    <i>sat</i> has no idea <i>who</i> sat. Self-attention is the step that fixes that, and it
+    works like a matchmaking round between all tokens:</p>
+    <ol class="explain steps">
+      <li>Every token publishes a <b>query</b> — a small vector meaning <i>“what I'm looking
+      for”</i>. (In a trained model, <i>sat</i> might effectively ask: “is there a noun just
+      before me?”)</li>
+      <li>Every token also publishes a <b>key</b> — <i>“what I can offer”</i>. (<i>cat</i>
+      might advertise: “I'm a noun, an animal.”)</li>
+      <li>Each query is compared with every earlier key by a <b>dot product</b>: multiply the
+      two vectors element by element and add it all up. Vectors pointing the same way ⇒ big
+      score. That's the whole matching mechanism.</li>
+      <li>The scores are divided by √12 (just to keep numbers tame) and pushed through a
+      <b>softmax</b>, which turns them into percentages that add up to 100%. Those percentages
+      are exactly the bright/dark cells in the map below.</li>
+      <li>Each token then updates itself with a weighted mix of the other tokens'
+      <b>values</b> (<i>“the information I hand over if you pick me”</i>) — mostly <i>cat</i>'s
+      value, if <i>cat</i> won the match. Now <i>sat</i> knows who sat.</li>
+    </ol>
+    <p class="explain">This happens <b>4 times in parallel per layer</b> (the “heads”, each
+    with its own learned matrices, so each head develops its own notion of relevance) and
+    across <b>3 layers</b>. The empty upper-right triangle of the map is the <b>causal
+    mask</b>: a token may never look at tokens after itself, because during generation the
+    future doesn't exist yet. <i>(One honest caveat: this toy's matrices are random, so its
+    heads have arbitrary preferences — in a trained model they specialize into roles like
+    “look at the previous noun”.)</i></p>
     <div class="panel">
       <div class="panel-title">Attention map <span class="mut">row = token that is looking · column = token being looked at</span></div>
       <div class="tabs" id="attn-layer-tabs"></div>
@@ -108,9 +129,20 @@
       <div class="mut small" id="attn-hover">hover or tap a cell to read the weight</div>
     </div>
     <div class="panel">
-      <div class="panel-title">Who is <span id="attn-sel-name">the last token</span> listening to?</div>
+      <div class="panel-title">Who is <span id="attn-sel-name">the last token</span> listening to?
+        <span class="mut">— click a token to make it the “looker”</span></div>
       <div class="token-strip clickable" id="attn-strip"></div>
       <div class="attn-bars" id="attn-bars"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">🔢 Follow the actual numbers
+        <span class="mut">— one real attention lookup, end to end (uses the layer & head selected above)</span></div>
+      <p class="explain small-note">These are the live values from the forward pass, not an
+      illustration. The <b>looker</b> is the token selected above; click any earlier token
+      below to choose which <b>looked-at</b> token to zoom in on.</p>
+      <div class="math-pick">looked-at token:</div>
+      <div class="token-strip clickable" id="attn-key-strip"></div>
+      <div id="attn-math"></div>
     </div>
     <div class="stage-foot">
       <span class="goal">🎯 Goal: find a head where a token strongly attends to a token far behind it.</span>

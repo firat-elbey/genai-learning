@@ -159,6 +159,42 @@ button { font: inherit; cursor: pointer; }
 .attn-bar-row .bar-fill { height: 100%; background: #3987e5; border-radius: 4px; display: block; }
 .attn-bar-row .val { width: 48px; color: #898781; font-variant-numeric: tabular-nums; }
 
+/* ---------- attention: the real-numbers panel ---------- */
+.steps li { margin: 6px 0; }
+.small-note { font-size: 13px; margin: 4px 0 10px; }
+.math-pick { color: #898781; font-size: 13px; margin-top: 10px; }
+.math-step {
+  position: relative; padding: 10px 12px 10px 40px; margin: 10px 0;
+  background: #131312; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+  color: #c3c2b7; font-size: 13.5px;
+}
+.step-n {
+  position: absolute; left: 10px; top: 10px; width: 22px; height: 22px;
+  border-radius: 50%; background: rgba(57,135,229,0.18); color: #86b6ef;
+  border: 1px solid rgba(57,135,229,0.45);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+}
+.num-row { display: inline-flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; }
+.num-chip {
+  font: 11.5px ui-monospace, Menlo, monospace; padding: 2px 5px; border-radius: 5px;
+  color: #fff; font-variant-numeric: tabular-nums;
+}
+.num-chip.pos { background: rgba(57,135,229,0.28); }
+.num-chip.neg { background: rgba(230,103,103,0.26); }
+.math-eq { margin-top: 8px; color: #c3c2b7; }
+.math-eq b { color: #fff; }
+.sm-row { display: inline-flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.sm-chip {
+  font-size: 11.5px; padding: 3px 8px; border-radius: 7px; background: #22262b;
+  border: 1px solid rgba(255,255,255,0.10); color: #c3c2b7;
+  font-family: ui-monospace, Menlo, monospace;
+}
+.sm-chip.picked { border-color: #eda100; background: rgba(237,161,0,0.10); color: #fff; }
+.attn-bar-row.clickable-row { cursor: pointer; border-radius: 6px; }
+.attn-bar-row.clickable-row:hover .lbl { color: #fff; }
+.attn-bar-row.picked .lbl { color: #eda100; font-weight: 700; }
+
 /* ---------- neurons ---------- */
 .neuron-layers { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; }
 .neuron-layer { text-align: center; }

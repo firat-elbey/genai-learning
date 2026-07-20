@@ -10,7 +10,7 @@ const APP = {
   trace: null,     // forward-pass trace over the last ctx tokens
   lastMs: 0,
 
-  sel: { emb: 0, attnLayer: 0, attnHead: 0, attnTok: 0, mlpTok: 0 },
+  sel: { emb: 0, attnLayer: 0, attnHead: 0, attnTok: 0, attnKey: null, mlpTok: 0 },
   gen: { ids: null, promptLen: 0, running: false, timer: null, count: 0 },
 
   init() {
@@ -69,6 +69,7 @@ const APP = {
       const last = this.trace.T - 1;
       this.sel.emb = Math.min(this.sel.emb, last);
       this.sel.attnTok = last;
+      this.sel.attnKey = null;
       this.sel.mlpTok = Math.min(this.sel.mlpTok, last);
     }
     this.resetGen();
@@ -235,7 +236,7 @@ const APP = {
 
     this.buildStrip(document.getElementById("attn-strip"), tr.tokens, {
       selected: this.sel.attnTok,
-      onClick: (i) => { this.sel.attnTok = i; this.renderAttention(); },
+      onClick: (i) => { this.sel.attnTok = i; this.sel.attnKey = null; this.renderAttention(); },
     });
     document.getElementById("attn-sel-name").textContent =
       `“${this.tok.display(tr.tokens[this.sel.attnTok])}”`;
@@ -243,16 +244,96 @@ const APP = {
     const pairs = [];
     for (let s = 0; s <= this.sel.attnTok; s++) pairs.push([s, row[s]]);
     pairs.sort((a, b) => b[1] - a[1]);
+    // default "looked-at" token for the numbers panel: the strongest match
+    if (this.sel.attnKey == null || this.sel.attnKey > this.sel.attnTok)
+      this.sel.attnKey = pairs[0][0];
     const box = document.getElementById("attn-bars");
     box.innerHTML = "";
     pairs.slice(0, 8).forEach(([s, w]) => {
       const div = document.createElement("div");
-      div.className = "attn-bar-row";
+      div.className = "attn-bar-row clickable-row" + (s === this.sel.attnKey ? " picked" : "");
+      div.title = "click to inspect this pair in the numbers panel below";
       div.innerHTML = `<span class="lbl">${escapeHtml(this.tok.display(tr.tokens[s]))}</span>
         <span class="bar-track"><span class="bar-fill" style="width:${(w * 100).toFixed(1)}%"></span></span>
         <span class="val">${(w * 100).toFixed(1)}%</span>`;
+      div.addEventListener("click", () => { this.sel.attnKey = s; this.renderAttention(); });
       box.appendChild(div);
     });
+    this.renderAttnMath();
+  },
+
+  // The "follow the actual numbers" panel: one attention lookup end to end,
+  // rendered from the live q/k/v vectors captured in the forward pass.
+  renderAttnMath() {
+    const tr = this.trace;
+    const t = this.sel.attnTok;
+    const s = this.sel.attnKey;
+    const L = tr.layers[this.sel.attnLayer];
+    const { q, k, v } = L.qkv[this.sel.attnHead];
+    const W = L.attn[this.sel.attnHead];
+    const S = L.scores[this.sel.attnHead];
+    const name = (i) => escapeHtml(this.tok.display(tr.tokens[i]));
+
+    this.buildStrip(document.getElementById("attn-key-strip"),
+      tr.tokens.slice(0, t + 1), {
+        selected: s,
+        onClick: (i) => { this.sel.attnKey = i; this.renderAttention(); },
+      });
+
+    const fmt = (x) => (x >= 0 ? "" : "−") + Math.abs(x).toFixed(2);
+    const chips = (vec, cls = "") =>
+      `<span class="num-row">` +
+      Array.from(vec).map((x) =>
+        `<span class="num-chip ${x >= 0 ? "pos" : "neg"} ${cls}">${fmt(x)}</span>`).join("") +
+      `</span>`;
+
+    const qv = q[t], kv = k[s];
+    const prod = qv.map((x, i) => x * kv[i]);
+    let dot = 0; for (const p of prod) dot += p;
+    const scaled = S[t][s];
+
+    // softmax row over all visible tokens
+    let smRow = "";
+    for (let s2 = 0; s2 <= t; s2++) {
+      smRow += `<span class="sm-chip${s2 === s ? " picked" : ""}">` +
+        `${name(s2)} <span class="mut">score</span> ${fmt(S[t][s2])} → <b>${(W[t][s2] * 100).toFixed(1)}%</b></span>`;
+    }
+
+    // weighted mix of values (the head's actual output for token t)
+    const dh = qv.length;
+    const out = new Float32Array(dh);
+    const terms = [];
+    for (let s2 = 0; s2 <= t; s2++) {
+      const w = W[t][s2];
+      for (let z = 0; z < dh; z++) out[z] += w * v[s2][z];
+      terms.push([s2, w]);
+    }
+    terms.sort((a, b) => b[1] - a[1]);
+    const mixText = terms.slice(0, 3)
+      .map(([s2, w]) => `<b>${(w * 100).toFixed(0)}%</b>·value(${name(s2)})`)
+      .join(" + ") + (terms.length > 3 ? " + …" : "");
+
+    document.getElementById("attn-math").innerHTML = `
+      <div class="math-step"><span class="step-n">1</span>
+        <b>“${name(t)}”</b> asks — its query vector (12 numbers):<br>${chips(qv)}</div>
+      <div class="math-step"><span class="step-n">2</span>
+        <b>“${name(s)}”</b> offers — its key vector:<br>${chips(kv)}</div>
+      <div class="math-step"><span class="step-n">3</span>
+        Multiply them slot by slot (1st×1st, 2nd×2nd, …):<br>${chips(prod)}
+        <div class="math-eq">add all 12 up → <b>q·k = ${fmt(dot)}</b>
+        <span class="mut">(big positive = the vectors point the same way = strong match)</span></div></div>
+      <div class="math-step"><span class="step-n">4</span>
+        <div class="math-eq">divide by √12 to keep it tame → <b>score = ${fmt(dot)} ÷ 3.46 = ${fmt(scaled)}</b></div></div>
+      <div class="math-step"><span class="step-n">5</span>
+        “${name(t)}” computed such a score against <b>every</b> token it can see.
+        Softmax turns them into shares of 100%:<br>
+        <span class="sm-row">${smRow}</span>
+        <div class="math-eq">so “${name(t)}” pays <b>${(W[t][s] * 100).toFixed(1)}%</b> of its attention to “${name(s)}” — exactly the brightness of that cell in the map above.</div></div>
+      <div class="math-step"><span class="step-n">6</span>
+        “${name(t)}” updates itself with the weighted mix of everyone's <i>value</i> vectors:
+        <div class="math-eq">new info = ${mixText}</div>
+        the 12 numbers this head hands onward for “${name(t)}”:<br>${chips(out)}
+        <div class="math-eq mut">…the 4 heads' outputs get concatenated (4 × 12 = 48 numbers) and added onto the token's vector. That's one attention layer, done.</div></div>`;
   },
 
   // ---------- stage 3: neurons ----------

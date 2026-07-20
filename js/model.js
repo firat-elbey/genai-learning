@@ -295,25 +295,32 @@ class TinyGPT {
       const L = this.layers[l];
       const lnA = x.map(layerNorm);
       // attention
-      const attnPerHead = []; // [H][T][T]
-      const headOuts = [];    // [H][T][dh]
+      const attnPerHead = [];   // [H][T][T] softmax weights
+      const scoresPerHead = []; // [H][T][T] raw scaled scores (pre-softmax)
+      const qkvPerHead = [];    // [H] {q,k,v} each [T][dh] — kept for the
+                                // "follow the actual numbers" teaching panel
+      const headOuts = [];      // [H][T][dh]
       for (let h = 0; h < H; h++) {
         const { Wq, Wk, Wv } = L.heads[h];
         const q = lnA.map((r) => vecMat(r, Wq));
         const k = lnA.map((r) => vecMat(r, Wk));
         const v = lnA.map((r) => vecMat(r, Wv));
         const A = zeros2(T, T);
+        const S = zeros2(T, T);
         for (let t = 0; t < T; t++) {
           const row = new Float32Array(t + 1);
           for (let s = 0; s <= t; s++) {
             let dot = 0;
             for (let z = 0; z < dh; z++) dot += q[t][z] * k[s][z];
             row[s] = dot / Math.sqrt(dh);
+            S[t][s] = row[s];
           }
           softmaxInPlace(row);
           for (let s = 0; s <= t; s++) A[t][s] = row[s];
         }
         attnPerHead.push(A);
+        scoresPerHead.push(S);
+        qkvPerHead.push({ q, k, v });
         const out = zeros2(T, dh);
         for (let t = 0; t < T; t++)
           for (let s = 0; s <= t; s++) {
@@ -346,7 +353,7 @@ class TinyGPT {
       }
       const afterMlp = x.map((r) => Float32Array.from(r));
 
-      trace.layers.push({ attn: attnPerHead, attnOut, afterAttn, mlpHidden, afterMlp });
+      trace.layers.push({ attn: attnPerHead, scores: scoresPerHead, qkv: qkvPerHead, attnOut, afterAttn, mlpHidden, afterMlp });
       trace.resStream.push(afterMlp);
     }
 
