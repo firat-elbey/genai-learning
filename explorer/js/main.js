@@ -270,25 +270,24 @@ const app = {
     calcs[0].rows.forEach((r, i) => { h += `<tr><td>${r[0]} <span class="mut">${r[1]}</span></td>${calcs.map((c) => `<td>${big(c.rows[i][2])}</td>`).join("")}</tr>`; });
     h += `<tr class="total"><td>total</td>${calcs.map((c) => `<td>${big(c.total)} <span class="mut">(${human(c.total)})</span></td>`).join("")}</tr>`;
     h += `<tr><td class="mut">+ biases & LayerNorm (this model)</td><td>${big(this.meta.n_params - calcs[0].total)} → ${big(this.meta.n_params)} total</td><td colspan="${cols.length - 1}" class="mut">GPT-3's published total is 175,181,291,520 (3Blue1Brown's table, biases excluded)</td></tr>`;
-    h += `</tbody></table></div><div class="row"><button class="btn" id="ghost-btn">Show GPT-2 / GPT-3 outlines</button><button class="btn" id="fly-toy">fly to this model</button><button class="btn" id="fly-gpt2">fly to GPT-2 small</button><button class="btn" id="fly-gpt3">fly to GPT-3</button></div><p class="mut small">The outline ghosts use this view's vertical pitch and the real models' widths (d_model, d_ff, vocabulary), with the same context length as your input, so the width ratio is exact and the height ratio is the true layer count.</p>`;
+    h += `</tbody></table></div><div class="row"><button class="btn" id="ghost-btn">Show GPT-2 / GPT-3 outlines</button><button class="btn" id="fly-toy">fly to this model</button><button class="btn" id="fly-gpt2">fly to GPT-2 small</button><button class="btn" id="fly-gpt3">fly to GPT-3</button></div><p class="mut small">The outlines use the real widths (d_model, d_ff, vocabulary), the real context length as depth (1024 tokens for GPT-2, 2048 for GPT-3 — this model's is ${this.model.T_max}) and this view's vertical pitch per level, so widths, depths and layer counts are all to scale. Nothing inside them is drawn: GPT-2 small alone would be ~85 million tiles per layer.</p>`;
     el.innerHTML = h;
     $("ghost-btn").addEventListener("click", () => this.ghosts ? this.hideGhosts() : this.showGhosts());
     $("fly-toy").addEventListener("click", () => this.scene.flyToAll({ dur: 1200 }));
-    $("fly-gpt2").addEventListener("click", () => { if (!this.ghosts) this.showGhosts(); this.scene.flyToBox(this.scene.ghostBox(this.ghosts[0].group), { dur: 1500, elev: 0.3 }); });
-    $("fly-gpt3").addEventListener("click", () => { if (!this.ghosts) this.showGhosts(); this.scene.flyToBox(this.scene.ghostBox(this.ghosts[1].group), { dur: 1800, elev: 0.3 }); });
+    $("fly-gpt2").addEventListener("click", () => { if (!this.ghosts) this.showGhosts(); this.scene.flyToBox(this.ghosts[0].stack, { dur: 1500, elev: 0.5, azim: 0.5 }); });
+    $("fly-gpt3").addEventListener("click", () => { if (!this.ghosts) this.showGhosts(); this.scene.flyToBox(this.ghosts[1].stack, { dur: 1800, elev: 0.5, azim: 0.5 }); });
   },
   renderScale() { this.renderScaleTable(); },
   showGhosts() {
-    const b = this.layout.bounds, T = this.trace.T;
-    let x = b.maxX + 60;
-    const g2 = this.scene.addGhost(REAL_GPTS[0], T, x + REAL_GPTS[0].vocab_size + 10, 0x86b6ef, "GPT-2 small");
-    x += g2.width + 400;
-    const g3 = this.scene.addGhost(REAL_GPTS[2], T, x + REAL_GPTS[2].vocab_size + 10, 0xf5b942, "GPT-3 175B");
+    const b = this.layout.bounds;
+    const g2 = this.scene.addGhost(REAL_GPTS[0], b.maxX + 120, 0x86b6ef, "GPT-2 small");
+    const g3 = this.scene.addGhost(REAL_GPTS[2], b.maxX + 120 + g2.width + 1500, 0xf5b942, "GPT-3 175B");
     this.ghosts = [g2, g3];
+    this.scene.setFog(false);
     const btn = $("ghost-btn"); if (btn) btn.textContent = "Hide outlines";
-    this.scene.flyToBox(this.scene.ghostBox(this.scene.ghostGroup).union(this.scene.boxOf([...this.scene.meshes.keys()])), { dur: 1600, elev: 0.25, azim: 0.15 });
+    this.scene.flyToBox(g2.stack.clone().union(g3.stack).union(this.scene.boxOf([...this.scene.meshes.keys()])), { dur: 1600, elev: 0.45, azim: 0.35 });
   },
-  hideGhosts() { if (!this.ghosts) return; this.scene.clearGhosts(); this.ghosts = null; const btn = $("ghost-btn"); if (btn) btn.textContent = "Show GPT-2 / GPT-3 outlines"; },
+  hideGhosts() { if (!this.ghosts) return; this.scene.clearGhosts(); this.scene.setFog(true); this.ghosts = null; const btn = $("ghost-btn"); if (btn) btn.textContent = "Show GPT-2 / GPT-3 outlines"; },
 
   // ----------------------------------------------------------- misc UI
   updateHash() {

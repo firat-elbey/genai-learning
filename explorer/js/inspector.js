@@ -53,7 +53,7 @@ export class Inspector {
     const colLab = b.square ? st.tokens.map(prettyToken) : b.colLabels === "vocab" ? st.model.vocab.map(prettyToken) : null;
     const labW = rowLab ? 26 : 16, labH = colLab ? 22 : 14;
     let cell = Math.floor((wrapW - labW) / b.cols);
-    cell = Math.max(2, Math.min(22, cell));
+    cell = Math.max(b.cols <= 128 ? 6 : 2, Math.min(22, cell));   // wide blocks scroll inside .heat-wrap
     const w = labW + cell * b.cols, h = labH + cell * b.rows;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);

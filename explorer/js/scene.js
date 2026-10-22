@@ -23,7 +23,7 @@ export class Scene3D {
     this.labels = new CSS2DRenderer({ element: labelLayer });
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0d0d0d);
-    this.scene.fog = new THREE.Fog(0x0d0d0d, 600, 6000);
+    this._fog = new THREE.Fog(0x0d0d0d, 600, 6000); this.scene.fog = this._fog;
     this.camera = new THREE.PerspectiveCamera(42, 1, 1, 400000);
     this.camera.position.set(120, 90, 220);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -83,12 +83,12 @@ export class Scene3D {
       const t = Math.min(1, (performance.now() - this.fly.t0) / this.fly.dur), k = ease(t);
       this.camera.position.lerpVectors(this.fly.p0, this.fly.p1, k);
       this.controls.target.lerpVectors(this.fly.c0, this.fly.c1, k);
-      if (t >= 1) this.fly = null;
+      if (t >= 1) { this.fly = null; this._flyEnded = true; }
     }
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
     if (this.showLabels) {
-      if ((this._frame = (this._frame || 0) + 1) % 6 === 0) this.cullLabels();
+      if ((this._frame = (this._frame || 0) + 1) % 3 === 0 || this._flyEnded) { this.cullLabels(); this._flyEnded = false; }
       this.labels.render(this.scene, this.camera);
     }
   }
@@ -101,7 +101,7 @@ export class Scene3D {
       if (!m.label || !m.mesh.visible) continue;
       const b = m.block;
       v.set(b.x + b.width / 2, b.y, b.z + b.depth / 2);
-      const range = 30 + 2.0 * Math.max(b.width, b.depth);
+      const range = 70 + 2.0 * Math.max(b.width, b.depth);
       m.label.visible = cam.distanceTo(v) < range;
       for (const el of m.extraLabels || []) el.visible = cam.distanceTo(v) < 90 + 2 * b.depth;
     }
@@ -293,6 +293,7 @@ export class Scene3D {
   flyToAll(opts) { this.flyToBox(this.boxOf([...this.meshes.keys()]), { elev: 0.85, azim: 0.45, fill: 1.25, ...opts }); }
 
   // ------------------------------------------------------------ ghosts (scale comparison)
+  setFog(on) { this.scene.fog = on ? this._fog : null; }
   clearGhosts() {
     for (const o of [...this.ghostGroup.children]) {
       this.ghostGroup.remove(o);
@@ -300,32 +301,36 @@ export class Scene3D {
     }
   }
   // Draw outline boxes for a GPT of config cfg at true relative scale, to the
-  // right of the current model. Each layer is one box (its true footprint and
-  // the same vertical pitch structure as the toy), plus embedding and unembedding.
-  addGhost(cfg, T, originX, color, name) {
-    const { d_model: d, n_layer: L, d_ff: dff, vocab_size: V } = cfg;
-    const pitch = this.layout ? this.layout.pitch : 20;
+  // right of the current model: real widths (d_model, d_ff, vocabulary), the
+  // real context length as depth, and the same vertical pitch as this view.
+  // One box per layer (its true footprint), plus the embedding table and the
+  // logits. Returns the group and the box of the layer stack (for fly-to).
+  addGhost(cfg, leftX, color, name) {
+    const { d_model: d, n_layer: L, d_ff: dff, vocab_size: V, block_size: C } = cfg;
+    const pitch = Math.max(9, Math.min(44, 0.62 * C));   // the same rule layout.js applies to this model's T
     const laneGap = 10, hgap = 4;
-    const width = Math.max(3 * d + 2 * hgap, dff) + laneGap + Math.max(d, dff);   // activations + weight lane
+    const laneW = Math.max(d, dff), actW = Math.max(3 * d + 2 * hgap, dff);
+    const width = actW + laneGap + laneW, left = leftX, originX = leftX + laneW + laneGap;
     const layerH = pitch * (1 + 0.8 + 1 + 1 + 1 + 1 + 1 + 1 + 0.8 + 1 + 1 + 1 + 1.6);
     const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.7, fog: false });
-    const g = new THREE.Group();
+    const g = new THREE.Group(); const stack = new THREE.Box3();
     let y = 0;
-    const box = (w, h, dep, x, yy, label) => {
+    const box = (w, h, dep, x, yy, label, track) => {
       const geo = new THREE.BoxGeometry(w, h, dep);
       const m = new THREE.LineSegments(new THREE.EdgesGeometry(geo), mat);
       m.position.set(x + w / 2, yy - h / 2, 0); g.add(m);
+      if (track) stack.union(new THREE.Box3(new THREE.Vector3(x, yy - h, -dep / 2), new THREE.Vector3(x + w, yy, dep / 2)));
       if (label) { const el = document.createElement("div"); el.className = "ghost-label"; el.textContent = label; const o = new CSS2DObject(el); o.position.set(x, yy + 2, -dep / 2); g.add(o); }
       return m;
     };
-    box(V, pitch * 2, d, originX - V - laneGap, y, `${name} · token embedding ${V}×${d}`);
-    box(d, pitch * 2, T, originX, y, `residual stream ${T}×${d}`); y -= pitch * 3;
-    for (let l = 0; l < L; l++) { box(width, layerH, T, originX - laneGap - Math.max(d, dff), y, l === 0 || l === L - 1 ? `${name} · layer ${l}` : null); y -= layerH + pitch * 0.4; }
-    box(V, pitch * 2, T, originX, y, `logits ${T}×${V}`);
-    const title = document.createElement("div"); title.className = "ghost-title"; title.innerHTML = name;
-    const to = new CSS2DObject(title); to.position.set(originX + Math.max(d, V) / 2, pitch * 4, 0); g.add(to);
+    box(d, pitch * 2, V, originX - laneGap - d, y, `token embedding ${V}×${d}`);
+    box(d, pitch * 2, C, originX, y, `residual stream ${C}×${d}`, true); y -= pitch * 3;
+    for (let l = 0; l < L; l++) { box(width, layerH, C, left, y, l === 0 || l === L - 1 ? `layer ${l}` : null, true); y -= layerH + pitch * 0.4; }
+    box(V, pitch * 2, C, originX, y, `logits ${C}×${V}`, true);
+    const title = document.createElement("div"); title.className = "ghost-title"; title.innerHTML = `${name} · ${L} layers · d=${d} · context ${C}`;
+    const to = new CSS2DObject(title); to.position.set(left + width / 2, pitch * 5, -C / 2); g.add(to);
     this.ghostGroup.add(g);
-    return { group: g, minY: y - pitch * 2, width: width + V + laneGap, height: -y + pitch * 4 };
+    return { group: g, stack, width, bottom: y - pitch * 2 };
   }
   ghostBox(group) { return new THREE.Box3().setFromObject(group); }
 

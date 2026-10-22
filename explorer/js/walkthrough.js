@@ -125,7 +125,7 @@ export const STEPS = [
 <p>The same block structure repeats ${st.L} times with <b>different weights</b> in each layer. Early layers tend to learn local, syntactic things (previous token, “what letter usually follows”), later layers more abstract ones — and because of the residual stream, each layer builds on everything before it.</p>
 <p><b>Logit lens</b> — reading the last token's residual vector out as a prediction after each layer (apply the final LayerNorm and the unembedding early):</p>
 <ol class="lens-list">${lens.join("")}</ol>
-<p>Watch the prediction form gradually. In big models the first layers' guesses are near-random and the final answer appears only in the last few layers.</p>
+<p>Watch the prediction form gradually. Early on the lens often just reads back the <i>current</i> token: with tied embeddings the residual stream starts out as the token's own embedding, whose biggest dot product is with itself — so the stream says “I am ${tokHtml(st.tokens[t])}”, and the layers' whole job is to turn that into “next comes …”. In big models the first layers' guesses are near-random and the final answer appears only in the last few layers.</p>
 <p class="hint">Try the <b>token lens</b> in the panel (pick a position) to follow one token's row through every block.</p>`; },
   },
   {
@@ -157,7 +157,7 @@ export const STEPS = [
     body: (st) => `
 <p>Nothing changes structurally between this model and GPT-3 — only the sizes. The table below computes the parameter counts with the same formulas for this toy, GPT-2 small (the 124 M model many visualisations run) and GPT-3 175 B (the breakdown in 3Blue1Brown's video). Biases and LayerNorm gains are omitted, as in the video.</p>
 <div id="scale-table"></div>
-<p>Press <b>Show GPT-2 / GPT-3 outlines</b> to draw their layers as wireframes next to this model at <b>true relative scale</b> (same vertical pitch; width = the real d<sub>model</sub> and d<sub>ff</sub>). Then fly out. GPT-3's residual stream is ${big(12288)} wide — ${Math.round(12288 / st.d)}× this model — and 96 layers deep.</p>
+<p>Press <b>Show GPT-2 / GPT-3 outlines</b> to draw their layers as wireframes next to this model at <b>true relative scale</b> (real d<sub>model</sub>, d<sub>ff</sub> and vocabulary as widths, the real context window as depth, this view's vertical pitch). Then fly out. GPT-3's residual stream is ${big(12288)} wide — ${Math.round(12288 / st.d)}× this model — and 96 layers deep.</p>
 <p>What scale buys: with ~50 k sub-word tokens, 12,288-dimensional vectors and 96 layers × 96 heads, the same q·k·v arithmetic you just zoomed into learns grammar, facts and reasoning-like behaviour from trillions of tokens. The computation you watched here is the same computation.</p>`,
   },
 ];
