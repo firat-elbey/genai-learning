@@ -311,3 +311,7 @@ footer {
   .tab { padding: 7px 14px; }
   .quiz-opt { padding: 13px 14px; }
 }
+
+/* link to the 3D explorer */
+.explorer-link { display: block; width: 100%; background: rgba(57,135,229,0.12); border: 1px solid rgba(57,135,229,0.45); color: #c3c2b7; border-radius: 10px; padding: 10px 14px; text-decoration: none; font-size: 13.5px; }
+.explorer-link:hover { background: rgba(57,135,229,0.22); color: #fff; }

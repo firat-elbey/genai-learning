@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM Explorer 3D — zoom into every number of a real GPT</title>
+<meta name="description" content="A 3D, zoomable walkthrough of a real trained GPT-style transformer: every weight, every activation, every attention score, with the arithmetic behind each cell.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔬</text></svg>">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/" } }
+</script>
+</head>
+<body data-mtab="guide">
+
+<header class="topbar">
+  <div class="brand">
+    <a class="back" href="../" title="back to Inside the Transformer">🧠</a>
+    <div>
+      <div class="brand-title">LLM Explorer 3D</div>
+      <div class="brand-sub">a real trained GPT, every number visible — zoom into any step</div>
+    </div>
+  </div>
+  <div class="top-controls">
+    <label>model <select id="model-pick">
+      <option value="shakespeare">Shakespeare (character LM, 4 layers)</option>
+      <option value="sort">Sorter A/B/C (3 layers, fully interpretable)</option>
+    </select></label>
+    <span class="stat" id="stat"></span>
+  </div>
+</header>
+
+<div class="mtabs">
+  <button class="mtab active" data-tab="guide">📖 Guide</button>
+  <button class="mtab" data-tab="view">🧊 3D view</button>
+  <button class="mtab" data-tab="inspect">🔍 Inspect</button>
+</div>
+
+<div class="app">
+  <aside class="left" id="guide">
+    <section class="input-sec">
+      <label for="prompt">Your input</label>
+      <textarea id="prompt" rows="2" spellcheck="false" autocomplete="off"></textarea>
+      <div class="mut small" id="prompt-help"></div>
+      <div class="examples" id="examples"></div>
+      <div class="tokstrip" id="tokstrip"></div>
+      <div class="nextpred" id="nextpred"></div>
+      <div class="gen-row">
+        <button class="btn primary" id="gen-next" title="sample one token and append it (g)">+1 token</button>
+        <button class="btn" id="gen-auto">▶ auto</button>
+        <button class="btn" id="gen-reset">↺ reset</button>
+        <label class="slider">T <input type="range" id="temp" min="0.05" max="2" step="0.05" value="1"><b id="temp-val">1.00</b></label>
+        <label class="slider">top-k <input type="range" id="topk" min="0" max="20" step="1" value="0"><b id="topk-val">off</b></label>
+        <label class="slider">speed <input type="range" id="gen-speed" min="1" max="8" step="1" value="3"></label>
+      </div>
+    </section>
+    <div class="model-info" id="model-info"></div>
+    <nav class="steps" id="steps"></nav>
+    <section class="step">
+      <div class="step-nav">
+        <button class="btn small" id="prev-step">← prev</button>
+        <h2 id="step-title"></h2>
+        <button class="btn small" id="next-step">next →</button>
+      </div>
+      <div class="step-body" id="step-body"></div>
+    </section>
+  </aside>
+
+  <main class="stage" id="stage">
+    <div class="viewbar">
+      <select id="layer-pick"></select>
+      <select id="head-pick"></select>
+      <label class="check"><input type="checkbox" id="lens-layer"> layer lens</label>
+      <label class="check"><input type="checkbox" id="lens-head"> head lens</label>
+      <select id="lens-token"><option value="">no token lens</option></select>
+      <span class="spacer"></span>
+      <label class="check"><input type="checkbox" id="opt-bars" checked> bars = |value|</label>
+      <label class="check"><input type="checkbox" id="opt-weights" checked> weights</label>
+      <label class="check"><input type="checkbox" id="opt-labels" checked> labels</label>
+      <button class="btn small" id="fit-all" title="fit whole model (f)">⤢ fit</button>
+    </div>
+    <div id="view3d"></div>
+    <div id="labels"></div>
+    <div id="tooltip"></div>
+    <div class="legend">
+      <span><i class="sw plate-act"></i> activation (depends on input)</span>
+      <span><i class="sw plate-w"></i> learned weight</span>
+      <span><i class="sw plate-attn"></i> attention pattern</span>
+      <span><i class="sw pos"></i> + <i class="sw neg"></i> − <i class="sw seq"></i> 0→1</span>
+      <span><i class="sw dep"></i> inputs of selected cell</span>
+    </div>
+    <div id="loading">loading…</div>
+  </main>
+
+  <aside class="right" id="inspector"></aside>
+</div>
+
+<script>
+if (location.protocol === "file:") {
+  document.getElementById("loading").innerHTML = "This page uses ES modules and fetches the model weights, which browsers block on <code>file://</code>.<br>Serve the folder over http instead:<br><code>python3 -m http.server 8000</code> &nbsp;then open <code>http://localhost:8000/explorer/</code>";
+}
+</script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

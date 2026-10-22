@@ -14,6 +14,16 @@ text → tokens → vectors → attention → neuron activations → probabiliti
 Six quiz-gated levels + a free playground, with XP, ranks (Curious Visitor →
 Transformer Tamer), badges, and progress saved on your device.
 
+## 🔬 Go deeper: LLM Explorer 3D
+
+**https://firat-elbey.github.io/genai-learning/explorer/** — the same pipeline,
+but with **real trained models** (a Shakespeare character LM and Bycroft-style
+A/B/C sorter, trained in `explorer/train/`) rendered as a zoomable 3D scene:
+every weight matrix, every activation, every attention score is a tile you can
+click to see the exact arithmetic behind it. 18-step guided walkthrough, lenses
+to follow one token/head/layer, a logit lens, live generation, and a true-scale
+comparison with GPT-2 and GPT-3. See [explorer/README.md](explorer/README.md).
+
 ## The levels
 
 | # | Level | What you see |

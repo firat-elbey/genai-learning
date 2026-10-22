@@ -1,0 +1,10 @@
+{
+  "name": "llm-explorer",
+  "private": true,
+  "type": "module",
+  "description": "3D zoomable GPT explorer — static site, no build step. `npm test` checks the JS forward pass against the Python training export.",
+  "scripts": {
+    "test": "node test/verify.mjs",
+    "serve": "python3 -m http.server 8000 --directory .."
+  }
+}
