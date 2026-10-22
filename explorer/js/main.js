@@ -96,7 +96,7 @@ const app = {
   },
   onInput() {
     const v = $("prompt").value;
-    if (this.isSort()) { this.text = v.toUpperCase().replace(/[^ABC]/g, "").slice(0, this.meta.n_in); $("prompt").value = this.text; this.genIds = []; }
+    if (this.isSort()) { this.text = v.toUpperCase().replace(/[^ABC]/g, "").slice(0, this.meta.n_in); $("prompt").value = this.text; this.completeSort(); }
     else this.text = v;
     clearTimeout(this._deb); this._deb = setTimeout(() => this.recompute({ keepCamera: true }), 180);
   },
@@ -319,7 +319,7 @@ const app = {
     $("gen-next").addEventListener("click", () => this.generateNext());
     $("gen-auto").addEventListener("click", () => this.startAuto());
     $("gen-reset").addEventListener("click", () => { this.stopAuto(); this.genIds = []; if (!this.isSort()) { this.text = EXAMPLES[this.name][0]; $("prompt").value = this.text; } this.recompute({ keepCamera: true }); });
-    $("gen-reset").title = "sorter: clear the model's answer · Shakespeare: restore the example prompt";
+    $("gen-reset").title = "sorter: clear the model's answer so you can add it one letter at a time · Shakespeare: restore the example prompt";
     $("temp").addEventListener("input", (e) => { this.temperature = +e.target.value; $("temp-val").textContent = this.temperature.toFixed(2); this.inspector.render(this.stateSnapshot(), this.sel); });
     $("topk").addEventListener("input", (e) => { this.topk = +e.target.value; $("topk-val").textContent = this.topk === 0 ? "off" : this.topk; });
     document.querySelectorAll(".mtab").forEach((b) => b.addEventListener("click", () => this.showMobileTab(b.dataset.tab)));

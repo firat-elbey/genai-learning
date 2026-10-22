@@ -129,3 +129,69 @@ Dark, single-committed theme on the validated data-viz reference palette
   learning theme (what the model "knows" is what it was exposed to).
 - **More game**: per-level challenge validation (detect that the user actually found
   a 3-piece word), achievements for playground discoveries.
+
+---
+
+# Part 2 — "LLM Explorer 3D" (`explorer/`)
+
+*2026-10-22. Follow-up brief: "go further — zoom into any part of the steps of
+an example open LLM like GPT-3, in 3D: weights vs attention vs MLP vs the
+vectorised input, renderable on GitHub, super deep."* Starting point was
+3Blue1Brown's *But what is a GPT?* (Deep Learning ch. 5).
+
+## Research (prior art surveyed before building)
+
+| source | what was taken |
+|---|---|
+| 3Blue1Brown ch. 5–7 (GPT, attention, MLP) | vocabulary and framing: embedding/unembedding, residual stream as the object every block edits, Q/K/V, value-down/value-up (= W_V/W_O), neurons as questions, softmax with temperature; the GPT-3 parameter table (175,181,291,520) reproduced live in the Scale step with the same formulas |
+| Brendan Bycroft, *LLM Visualization* (bbycroft.net/llm, github bbycroft/llm-viz) | a 3D scene where every tensor is a block and a walkthrough flies the camera (Intro → Embedding → LayerNorm → Self-attention → Softmax → Projection → MLP → Transformer → Output); the A/B/C sorting nano-gpt from minGPT (vocab 3, ctx 11, d 48, 3 layers, 3 heads) whose heads have readable jobs |
+| Transformer Explainer (Polo Club, Georgia Tech) | a real model in the browser driven by the user's own text; temperature/sampling controls as a first-class view |
+| Karpathy nanoGPT / minGPT, GPT-2 | the exact architecture (pre-LN, learned positions, GELU-tanh, tied unembedding, biases, N(0,0.02) init with 1/√(2L) on residual projections) mirrored in both the JAX trainer and the JS forward pass |
+
+GPT-3 itself is not open, so the "example open LLM" is GPT-2's architecture
+(identical to GPT-3's up to size), trained small enough to draw every number.
+
+## Decisions
+
+1. **Trained weights, two models.** The first app ran random weights (honestly
+   disclosed). Here every claim in the walkthrough is about a number the model
+   computed *because it learned to*, so both models are trained in-repo with a
+   ~250-line JAX script (PyTorch wheels are blocked in the build sandbox; JAX
+   from PyPI is not): the Bycroft sorter (100 % accuracy, interpretable heads)
+   and a character-level Shakespeare LM (val loss 1.56 nats/char, 208 k params).
+2. **JS forward pass with a verification vector.** The export carries the logits
+   JAX produced for a fixed input; `npm test` asserts the browser forward pass
+   matches to 1e-5, and the inspector recomputes every derivation from the
+   inputs rather than reading it from the trace — the sum at the bottom of each
+   term table is an independent check.
+3. **One InstancedMesh per tensor, no level of detail.** 100–400 k cells is well
+   within WebGL budgets on a laptop GPU; flat 2-triangle tiles for weights,
+   boxes with height = |value| for activations. "Zooming into a step" is then
+   literally moving the camera, and the same scene serves overview and cell.
+4. **Weights vs activations as a visual grammar.** Blue plates / flat tiles =
+   learned (fixed for every input); amber plates / bars = activations (depend
+   on your input); purple = attention patterns; green = probabilities. Weights
+   sit in a lane to the left of the activation they produce.
+5. **Depth = derivations + lenses + logit lens + scale.** Per-cell arithmetic
+   (every term, sorted), dependency highlights, token/head/layer lenses, the
+   logit lens on every residual snapshot, live generation that grows every
+   block by a row, and true-relative-scale wireframes of GPT-2 small and
+   GPT-3 beside the toy.
+6. **Static site, vendored three.js r170.** No build step; works on GitHub
+   Pages and `python3 -m http.server`. ES modules + fetched weights mean it
+   cannot run from `file://` (a notice explains this).
+
+## Workflow log
+
+1. Read the existing app for conventions (palette, no-build, Pages workflow).
+2. Research pass (above); confirmed Bycroft's walkthrough order from the
+   source tree; chose the two models.
+3. JAX trainer → smoke-trained the sorter in 14 s → full runs in the background
+   while writing the JS: forward pass (verified), layout, scene, walkthrough,
+   inspector, app shell.
+4. Headless-Chromium tour (Playwright, SwiftShader): screenshots of all 18
+   steps, click-picking, generation, ghosts; fixed what they showed — label
+   pile-up at overview distance (distance-based culling + layer group markers),
+   too-edge-on cameras (higher elevation, minimum focus radius), fog hiding the
+   scale ghosts, a scale table wider than its panel, and 12-triangle boxes
+   where 2-triangle tiles suffice.

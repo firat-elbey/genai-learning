@@ -149,7 +149,7 @@ export const STEPS = [
     frame: () => ["tokens", "x0", "probs"], lens: () => ({}), select: () => null,
     body: (st) => `
 <p>One forward pass = one new token. To write text the model <b>loops</b>: sample the next token, append it to the input, run the whole stack again on the longer sequence. Every answer from every chat model is produced by exactly this loop (with caching tricks so earlier positions aren't recomputed).</p>
-<p>Press <b>▶ Generate</b> in the panel: a row is added to every activation block in the 3D view and everything is recomputed. ${st.meta.task === "sort" ? `For the sorter: positions 0–${st.nIn - 1} are the input letters, the model's own output letters are appended after them. Generate 6 tokens and it should spell the input sorted.` : `The model was trained on Shakespeare; with ~${human(st.meta.n_params)} parameters expect plausible-looking words, not sense — the mechanism is the point.`}</p>`,
+<p>Press <b>▶ Generate</b> in the panel: a row is added to every activation block in the 3D view and everything is recomputed. ${st.meta.task === "sort" ? `For the sorter: positions 0–${st.nIn - 1} are the input letters (white) and the model's own output letters follow them (green). It fills in its answer automatically; press <b>↺ reset</b> to clear it, then <b>+1 token</b> to watch it sort one letter at a time — the last position's prediction is always the next-smallest letter still owed.` : `The model was trained on Shakespeare; with ~${human(st.meta.n_params)} parameters expect plausible-looking words, not sense — the mechanism is the point.`}</p>`,
   },
   {
     id: "scale", title: "From this toy to GPT-2 and GPT-3", short: "Scale",

@@ -101,7 +101,7 @@ export class Scene3D {
       if (!m.label || !m.mesh.visible) continue;
       const b = m.block;
       v.set(b.x + b.width / 2, b.y, b.z + b.depth / 2);
-      const range = 40 + 3.2 * Math.max(b.width, b.depth);
+      const range = 30 + 2.0 * Math.max(b.width, b.depth);
       m.label.visible = cam.distanceTo(v) < range;
       for (const el of m.extraLabels || []) el.visible = cam.distanceTo(v) < 90 + 2 * b.depth;
     }
@@ -290,10 +290,15 @@ export class Scene3D {
     this.fly = { t0: performance.now(), dur, p0: this.camera.position.clone(), p1: center.clone().addScaledVector(dir, dist), c0: this.controls.target.clone(), c1: center };
   }
   flyToBlocks(ids, opts) { this.flyToBox(this.boxOf(ids), opts); }
-  flyToAll(opts) { this.flyToBox(this.boxOf([...this.meshes.keys()]), { elev: 0.85, azim: 0.45, fill: 1.0, ...opts }); }
+  flyToAll(opts) { this.flyToBox(this.boxOf([...this.meshes.keys()]), { elev: 0.85, azim: 0.45, fill: 1.25, ...opts }); }
 
   // ------------------------------------------------------------ ghosts (scale comparison)
-  clearGhosts() { for (const o of [...this.ghostGroup.children]) { this.ghostGroup.remove(o); o.traverse && o.traverse((c) => { c.geometry && c.geometry.dispose(); c.material && c.material.dispose(); }); if (o.element) o.element.remove(); } }
+  clearGhosts() {
+    for (const o of [...this.ghostGroup.children]) {
+      this.ghostGroup.remove(o);
+      o.traverse((c) => { if (c.element) c.element.remove(); c.geometry && c.geometry.dispose(); c.material && c.material.dispose(); });
+    }
+  }
   // Draw outline boxes for a GPT of config cfg at true relative scale, to the
   // right of the current model. Each layer is one box (its true footprint and
   // the same vertical pitch structure as the toy), plus embedding and unembedding.
